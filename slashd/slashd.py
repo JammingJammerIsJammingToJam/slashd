@@ -1,10 +1,11 @@
 import sys
+import socket
 import random
 sys.setrecursionlimit(2147483647)
 import os.path
 import os
-variables = ["slsh", "opbr", "clbr", "coln"]
-variabledata = ["/", "(", ")", ":"]
+variables = ["slsh", "opbr", "clbr", "coln", "addr"]
+variabledata = ["/", "(", ")", ":", ""]
 from decimal import Decimal
 from functools import cache
 
@@ -263,6 +264,55 @@ def run(filename):
       line = reset(line)
       continue
     elif mainsect == "":
+      line = reset(line)
+      continue
+    elif mainsect == "createsock":
+      sock = socket.socket()
+      line = reset(line)
+      continue
+    elif mainsect == "bindsock":
+      ip = parse(code[line], 9, list("/"))
+      port = int(parse(code[line], 10+len(ip), list("/")))
+      sock.bind((ip, port))
+      line = reset(line)
+      continue
+    elif mainsect == "listensock":
+      connectionnum = int(parse(code[line], 11, list("/")))
+      sock.listen(connectionnum)
+      line = reset(line)
+      continue
+    elif mainsect == "acceptconnect":
+      c, addr = sock.accept()
+      variabledata[variables.index("addr")] = addr
+      line = reset(line)
+      continue
+    elif mainsect == "sendsock":
+      subsect = parse(code[line], 9, list("/"))
+      c.send(subsect.encode("UTF-8"))
+      line = reset(line)
+      continue
+    elif mainsect == "closeconnect":
+      c.close()
+      line = reset(line)
+      continue
+    elif mainsect == "closesock":
+      sock.close()
+      line = reset(line)
+      continue
+    elif mainsect == "recvsock":
+      subsect = parse(code[line], 9, list("/"))
+      if not subsect in variables:
+          print("Error on Line "+str(line+1)+": variable not declared")
+          quit()
+      variablenum = variables.index(subsect)
+      subsect = parse(code[line], 10+len(subsect), list("/"))
+      variabledata[variablenum] = sock.recv(int(subsect)).decode()
+      line = reset(line)
+      continue
+    elif mainsect == "sockconnect":
+      ip = parse(code[line], 12, list("/"))
+      port = int(parse(code[line], 13+len(ip), list("/")))
+      sock.connect((ip, port))
       line = reset(line)
       continue
     else:
