@@ -6,6 +6,9 @@ import os.path
 import os
 variables = ["slsh", "opbr", "clbr", "coln", "addr"]
 variabledata = ["/", "(", ")", ":", ""]
+objects = []
+objectdata = []
+connections = []
 from decimal import Decimal
 from functools import cache
 
@@ -267,52 +270,100 @@ def run(filename):
       line = reset(line)
       continue
     elif mainsect == "createsock":
-      sock = socket.socket()
+      subsect = parse(code[line], 11, list("/"))
+      if subsect in objects:
+        print("Error on Line "+str(line+1)+": socket already declared")
+        quit()
+      else:
+        objects.append(subsect)
+        objectnum = objects.index(subsect)
+        objectdata.append(socket.socket())
+        connections.append(None)
       line = reset(line)
       continue
     elif mainsect == "bindsock":
-      ip = parse(code[line], 9, list("/"))
-      port = int(parse(code[line], 10+len(ip), list("/")))
-      sock.bind((ip, port))
+      subsect = parse(code[line], 9, list("/"))
+      ip = parse(code[line], 10+len(subsect), list("/"))
+      port = int(parse(code[line], 11+len(ip)+len(subsect), list("/")))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      objectdata[objectnum].bind((ip, port))
       line = reset(line)
       continue
     elif mainsect == "listensock":
-      connectionnum = int(parse(code[line], 11, list("/")))
-      sock.listen(connectionnum)
+      subsect = parse(code[line], 11, list("/"))
+      connectionnum = int(parse(code[line], 12+len(subsect), list("/")))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      objectdata[objectnum].listen(connectionnum)
       line = reset(line)
       continue
     elif mainsect == "acceptconnect":
-      c, addr = sock.accept()
+      subsect = parse(code[line], 14, list("/"))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      connections[objectnum], addr = objectdata[objectnum].accept()
       variabledata[variables.index("addr")] = addr
       line = reset(line)
       continue
     elif mainsect == "sendsock":
       subsect = parse(code[line], 9, list("/"))
-      c.send(subsect.encode("UTF-8"))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      subsect = parse(code[line], 10+len(subsect), list("/"))
+      connections[objectnum].send(subsect.encode("UTF-8"))
       line = reset(line)
       continue
     elif mainsect == "closeconnect":
-      c.close()
+      subsect = parse(code[line], 13, list("/"))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      connections[objectnum].close()
       line = reset(line)
       continue
     elif mainsect == "closesock":
-      sock.close()
+      subsect = parse(code[line], 10, list("/"))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      objectdata[objectnum].close()
       line = reset(line)
       continue
     elif mainsect == "recvsock":
-      subsect = parse(code[line], 9, list("/"))
+      sock = parse(code[line], 9, list("/"))
+      if not sock in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(sock)
+      subsect = parse(code[line], 10+len(sock), list("/"))
       if not subsect in variables:
           print("Error on Line "+str(line+1)+": variable not declared")
           quit()
       variablenum = variables.index(subsect)
-      subsect = parse(code[line], 10+len(subsect), list("/"))
-      variabledata[variablenum] = sock.recv(int(subsect)).decode()
+      subsect = parse(code[line], 11+len(subsect)+len(sock), list("/"))
+      variabledata[variablenum] = objectdata[objectnum].recv(int(subsect)).decode()
       line = reset(line)
       continue
     elif mainsect == "sockconnect":
-      ip = parse(code[line], 12, list("/"))
-      port = int(parse(code[line], 13+len(ip), list("/")))
-      sock.connect((ip, port))
+      subsect = parse(code[line], 12, list("/"))
+      if not subsect in objects:
+          print("Error on Line "+str(line+1)+": socket not declared")
+          quit()
+      objectnum = objects.index(subsect)
+      ip = parse(code[line], 13+len(subsect), list("/"))
+      port = int(parse(code[line], 14+len(ip)+len(subsect), list("/")))
+      objectdata[objectnum].connect((ip, port))
       line = reset(line)
       continue
     else:
